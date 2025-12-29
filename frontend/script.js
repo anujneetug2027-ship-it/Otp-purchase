@@ -1,4 +1,4 @@
-const API = "YOUR_RENDER_BACKEND_URL";
+const API = "https://otp-purchase.onrender.com";
 
 async function login() {
   await fetch(`${API}/admin/login`, {
