@@ -16,7 +16,7 @@ app.use(
     origin: [
       "http://localhost:3000",
       "http://localhost:5173",
-      "https://YOUR_VERCEL_FRONTEND_URL"
+      "https://otp-purchase-lcp2.vercel.app/"
     ],
     credentials: true
   })
