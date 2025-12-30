@@ -4,6 +4,8 @@ import express from "express";
 import mongoose from "mongoose";
 import session from "express-session";
 import cors from "cors";
+import botRoutes from "./routes/bot.js";
+app.use("/bot", botRoutes);
 import adminRoutes from "./routes/admin.js";
 
 const app = express();
