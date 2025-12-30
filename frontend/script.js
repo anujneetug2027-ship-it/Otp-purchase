@@ -1,5 +1,4 @@
 /* ===================== CONFIG ===================== */
-/* 🔴 PUT YOUR RENDER BACKEND URL HERE */
 const API = "https://otp-purchase.onrender.com";
 
 /* ===================== LOGIN ===================== */
@@ -10,7 +9,7 @@ async function login() {
       headers: {
         "Content-Type": "application/json"
       },
-      credentials: "include", // REQUIRED for sessions
+      credentials: "include",
       body: JSON.stringify({
         email: document.getElementById("email").value,
         password: document.getElementById("pass").value
@@ -33,15 +32,20 @@ async function login() {
 /* ===================== CREATE COUPON ===================== */
 async function createCoupon() {
   try {
+    const code = document.getElementById("coupon").value.trim();
+
+    if (!code) {
+      alert("Enter coupon code");
+      return;
+    }
+
     const res = await fetch(`${API}/admin/coupon`, {
       method: "POST",
       headers: {
         "Content-Type": "application/json"
       },
-      credentials: "include", // REQUIRED for auth
-      body: JSON.stringify({
-        code: document.getElementById("coupon").value
-      })
+      credentials: "include",
+      body: JSON.stringify({ code })
     });
 
     const data = await res.json();
