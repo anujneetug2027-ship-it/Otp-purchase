@@ -1,15 +1,22 @@
 import mongoose from "mongoose";
 
 const couponSchema = new mongoose.Schema({
-  couponCode: { type: String, unique: true },
-  generatedBy: String,
-  createdAt: {
-    type: Date,
-    default: Date.now
+  code: {
+    type: String,
+    required: true,
+    unique: true
   },
-  isUsed: {
+  used: {
     type: Boolean,
     default: false
+  },
+  usedBy: {
+    type: String, // telegram chat id
+    default: null
+  },
+  usedAt: {
+    type: Date,
+    default: null
   }
 });
 
