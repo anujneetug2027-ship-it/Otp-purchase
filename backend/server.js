@@ -1,4 +1,3 @@
-
 console.log("🚀 Server starting");
 
 import express from "express";
@@ -10,7 +9,6 @@ import adminRoutes from "./routes/admin.js";
 const app = express();
 
 /* ===================== CORS ===================== */
-/* ⚠️ VERY IMPORTANT: put your Vercel frontend URL */
 app.use(
   cors({
     origin: [
@@ -33,8 +31,9 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: true,      // Render uses HTTPS
-      sameSite: "none",  // REQUIRED for cross-site cookies
+      httpOnly: true,
+      secure: true,      // Render = HTTPS
+      sameSite: "none",  // REQUIRED for Vercel ↔ Render
       maxAge: 1000 * 60 * 60 // 1 hour
     }
   })
