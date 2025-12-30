@@ -1,154 +1,168 @@
-import TelegramBot from "node-telegram-bot-api";
-import fetch from "node-fetch";
-import Coupon from "../models/Coupon.js";
+import axios from "axios";
+import { Telegraf, Markup } from "telegraf";
 
-const bot = new TelegramBot(process.env.TG_BOT_TOKEN, { polling: true });
+/* =======================
+   ENV
+======================= */
+const BOT_TOKEN = process.env.TG_BOT_TOKEN; // or BOT_TOKEN (your choice)
+const OTPFATHER_KEY = process.env.OTPFATHER_API_KEY;
 
-/* =====================================================
-   USER STATE (IN-MEMORY)
-===================================================== */
-const userState = {};
+const bot = new Telegraf(BOT_TOKEN);
 
-/* =====================================================
-   CONFIG — YOU EDIT ONLY THESE
-===================================================== */
+/* =======================
+   TEMP MEMORY (SIMPLE)
+======================= */
+const userState = {}; // chatId -> state
 
-/*
-  🔴 PUT YOUR OTPFATHER SERVER-LIST API HERE
-  Example (you paste):
-  https://otpfather.xyz/api?action=getServers&service={APP}
+/* =======================
+   CONSTANTS
+======================= */
+const OTP_API = "https://otpfather.xyz/stu";
 
-  IMPORTANT:
-  - Must return JSON
-  - Must include availability per server
-*/
-const SERVER_API_URL = process.env.OTPFATHER_SERVER_API;
+// Static apps (map to OTPfather service codes)
+const APPS = {
+  "BigBasket": "bb",
+  "Country Delight": "countrydelight"
+};
 
-/* =====================================================
-   /start
-===================================================== */
-bot.onText(/\/start/, (msg) => {
-  const chatId = msg.chat.id;
+/* =======================
+   START
+======================= */
+bot.start(async (ctx) => {
+  const chatId = ctx.chat.id;
+  userState[chatId] = { step: "name" };
 
-  userState[chatId] = {
-    step: "WAITING_COUPON"
-  };
-
-  bot.sendMessage(chatId, "👋 Welcome!\n\nEnter your coupon code:");
+  await ctx.reply("👋 Welcome!\n\nPlease enter your name:");
 });
 
-/* =====================================================
-   TEXT MESSAGE HANDLER
-===================================================== */
-bot.on("message", async (msg) => {
-  const chatId = msg.chat.id;
-  const text = msg.text?.trim();
+/* =======================
+   TEXT HANDLER
+======================= */
+bot.on("text", async (ctx) => {
+  const chatId = ctx.chat.id;
+  const text = ctx.message.text;
 
   if (!userState[chatId]) return;
 
-  /* ---------- COUPON STEP ---------- */
-  if (userState[chatId].step === "WAITING_COUPON") {
-    const coupon = await Coupon.findOne({ code: text?.toUpperCase() });
+  /* STEP 1: NAME */
+  if (userState[chatId].step === "name") {
+    userState[chatId].name = text;
+    userState[chatId].step = "coupon";
 
-    if (!coupon) {
-      return bot.sendMessage(chatId, "❌ Invalid coupon.\nTry again:");
+    return ctx.reply("🔑 Enter your coupon code:");
+  }
+
+  /* STEP 2: COUPON */
+  if (userState[chatId].step === "coupon") {
+    userState[chatId].coupon = text;
+    userState[chatId].step = "app";
+
+    return ctx.reply(
+      "📱 Select App:",
+      Markup.keyboard(Object.keys(APPS)).resize()
+    );
+  }
+
+  /* STEP 3: APP */
+  if (userState[chatId].step === "app") {
+    if (!APPS[text]) {
+      return ctx.reply("❌ Invalid app. Select from buttons.");
     }
 
-    userState[chatId] = {
-      step: "WAITING_APP",
-      coupon: coupon.code
-    };
+    userState[chatId].appName = text;
+    userState[chatId].service = APPS[text];
+    userState[chatId].step = "server";
 
-    return bot.sendMessage(chatId, "✅ Coupon verified!\n\nSelect app:", {
-      reply_markup: {
-        inline_keyboard: [
-          [{ text: "Magicpin", callback_data: "app_magicpin" }],
-          [{ text: "Country Delight", callback_data: "app_countrydelight" }],
-          [{ text: "BigBasket", callback_data: "app_bigbasket" }]
-        ]
-      }
-    });
+    await ctx.reply("🔄 Fetching servers...");
+
+    return sendAllServers(ctx);
   }
 });
 
-/* =====================================================
-   INLINE BUTTON HANDLER
-===================================================== */
-bot.on("callback_query", async (query) => {
-  const chatId = query.message.chat.id;
-  const data = query.data;
-
-  if (!userState[chatId]) return;
-
-  /* ---------- APP SELECT ---------- */
-  if (data.startsWith("app_")) {
-    const app = data.replace("app_", "");
-
-    userState[chatId].app = app;
-
-    bot.sendMessage(chatId, "🔄 Fetching available servers...");
-
-    try {
-      /* ===============================
-         🔴 REAL FETCH (YOU CONTROL API)
-      =============================== */
-      const res = await fetch(
-        SERVER_API_URL.replace("{APP}", app)
-      );
-
-      const json = await res.json();
-
-      /*
-        EXPECTED JSON FORMAT (example):
-        {
-          "servers": [
-            { "id": 1, "name": "Server 1", "available": true },
-            { "id": 2, "name": "Server 2", "available": false }
-          ]
-        }
-      */
-
-      const availableServers = json.servers?.filter(
-        (s) => s.available === true
-      );
-
-      if (!availableServers || availableServers.length === 0) {
-        return bot.sendMessage(
-          chatId,
-          "❌ No servers available for this app right now."
-        );
-      }
-
-      return bot.sendMessage(chatId, "🟢 Available servers:", {
-        reply_markup: {
-          inline_keyboard: availableServers.map((s) => [
-            {
-              text: s.name,
-              callback_data: `server_${s.id}`
-            }
-          ])
-        }
-      });
-    } catch (err) {
-      console.error("Server fetch error:", err.message);
-      return bot.sendMessage(
-        chatId,
-        "⚠️ Failed to fetch server list. Try later."
-      );
-    }
-  }
-
-  /* ---------- SERVER SELECT ---------- */
-  if (data.startsWith("server_")) {
-    const serverId = data.replace("server_", "");
-
-    bot.sendMessage(
-      chatId,
-      `✅ Server ${serverId} selected.\n\n(Flow ends here)`
+/* =======================
+   SEND ALL SERVERS (OPTION A)
+======================= */
+async function sendAllServers(ctx) {
+  try {
+    const res = await axios.get(
+      `${OTP_API}?api_key=${OTPFATHER_KEY}&action=getServers`
     );
 
-    delete userState[chatId];
+    const lines = res.data.split("\n");
+
+    const buttons = lines
+      .filter((l) => l.includes(":"))
+      .map((l) => {
+        const [id, name] = l.split(":").map((x) => x.trim());
+        return Markup.button.callback(name, `server_${id}`);
+      });
+
+    if (!buttons.length) {
+      return ctx.reply("❌ No servers returned by API.");
+    }
+
+    await ctx.reply(
+      "🌍 Select any server (availability will be checked next):",
+      Markup.inlineKeyboard(buttons, { columns: 2 })
+    );
+  } catch (err) {
+    console.error(err.message);
+    ctx.reply("❌ Failed to fetch servers.");
+  }
+}
+
+/* =======================
+   SERVER SELECTION
+======================= */
+bot.action(/server_(.+)/, async (ctx) => {
+  const chatId = ctx.chat.id;
+  const serverId = ctx.match[1];
+
+  const service = userState[chatId]?.service;
+  if (!service) return;
+
+  await ctx.answerCbQuery();
+  await ctx.reply("⏳ Checking availability...");
+
+  try {
+    const res = await axios.get(
+      `${OTP_API}?api_key=${OTPFATHER_KEY}&action=getNumber&service=${service}&server=${serverId}`
+    );
+
+    const data = res.data;
+
+    if (data.startsWith("ACCESS_NUMBER")) {
+      const parts = data.split(":");
+      const number = parts[2];
+
+      return ctx.reply(
+        `✅ Server AVAILABLE!\n\n📞 Number: ${number}\n🖥 Server: ${serverId}`
+      );
+    }
+
+    if (data.includes("NO_NUMBERS")) {
+      return ctx.reply("❌ No numbers on this server.\nTry another server.");
+    }
+
+    if (data.includes("NO_BALANCE")) {
+      return ctx.reply("❌ API balance exhausted.");
+    }
+
+    return ctx.reply("⚠️ Unexpected response:\n" + data);
+  } catch (err) {
+    console.error(err.message);
+    ctx.reply("❌ Error checking server.");
   }
 });
 
-console.log("🤖 Telegram bot started (coupon → app → available servers)");
+/* =======================
+   START BOT
+======================= */
+bot.launch();
+console.log("🤖 Telegram bot started");
+
+/* =======================
+   GRACEFUL STOP
+======================= */
+process.once("SIGINT", () => bot.stop("SIGINT"));
+process.once("SIGTERM", () => bot.stop("SIGTERM"));
