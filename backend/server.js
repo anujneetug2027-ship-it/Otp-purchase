@@ -4,16 +4,20 @@ import express from "express";
 import mongoose from "mongoose";
 import session from "express-session";
 import cors from "cors";
-import botRoutes from "./routes/bot.js";
-app.use("/bot", botRoutes);
+
 import adminRoutes from "./routes/admin.js";
+import botRoutes from "./routes/bot.js"; // ✅ BOT ROUTES
 
 const app = express();
 
-/* ✅ REQUIRED FOR RENDER (VERY IMPORTANT) */
+/* =====================================================
+   REQUIRED FOR RENDER (SECURE COOKIES BEHIND PROXY)
+===================================================== */
 app.set("trust proxy", 1);
 
-/* ===================== CORS ===================== */
+/* =====================================================
+   CORS (ALLOW VERCEL FRONTEND + COOKIES)
+===================================================== */
 app.use(
   cors({
     origin: [
@@ -25,10 +29,14 @@ app.use(
   })
 );
 
-/* ===================== BODY ===================== */
+/* =====================================================
+   BODY PARSER
+===================================================== */
 app.use(express.json());
 
-/* ===================== SESSION ===================== */
+/* =====================================================
+   SESSION CONFIG
+===================================================== */
 app.use(
   session({
     name: "admin-session",
@@ -37,21 +45,29 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,      // HTTPS only
-      sameSite: "none",  // Cross-site
-      maxAge: 1000 * 60 * 60
+      secure: true,     // HTTPS (Render)
+      sameSite: "none", // Required for cross-site cookies
+      maxAge: 1000 * 60 * 60 // 1 hour
     }
   })
 );
 
-/* ===================== ROUTES ===================== */
+/* =====================================================
+   ROUTES
+===================================================== */
 app.get("/", (req, res) => {
   res.send("Server alive");
 });
 
+/* Admin panel routes */
 app.use("/admin", adminRoutes);
 
-/* ===================== DATABASE ===================== */
+/* Telegram bot routes */
+app.use("/bot", botRoutes);
+
+/* =====================================================
+   DATABASE
+===================================================== */
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
@@ -59,9 +75,11 @@ mongoose
     console.error("❌ MongoDB connection error:", err.message)
   );
 
-/* ===================== SERVER ===================== */
+/* =====================================================
+   SERVER START
+===================================================== */
 const PORT = process.env.PORT || 3000;
 
 app.listen(PORT, () => {
-  console.log("✅ Listening on port", PORT);
+  console.log(`✅ Server listening on port ${PORT}`);
 });
