@@ -8,6 +8,9 @@ import adminRoutes from "./routes/admin.js";
 
 const app = express();
 
+/* ✅ REQUIRED FOR RENDER (VERY IMPORTANT) */
+app.set("trust proxy", 1);
+
 /* ===================== CORS ===================== */
 app.use(
   cors({
@@ -32,9 +35,9 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,      // Render = HTTPS
-      sameSite: "none",  // REQUIRED for Vercel ↔ Render
-      maxAge: 1000 * 60 * 60 // 1 hour
+      secure: true,      // HTTPS only
+      sameSite: "none",  // Cross-site
+      maxAge: 1000 * 60 * 60
     }
   })
 );
