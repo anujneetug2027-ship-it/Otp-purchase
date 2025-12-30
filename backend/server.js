@@ -6,17 +6,20 @@ import session from "express-session";
 import cors from "cors";
 
 import adminRoutes from "./routes/admin.js";
-import botRoutes from "./routes/bot.js"; // ✅ BOT ROUTES
+import botRoutes from "./routes/bot.js";
+
+// 🔴 THIS LINE IS MANDATORY (starts polling)
+import "./bot/bot.js";
 
 const app = express();
 
 /* =====================================================
-   REQUIRED FOR RENDER (SECURE COOKIES BEHIND PROXY)
+   REQUIRED FOR RENDER
 ===================================================== */
 app.set("trust proxy", 1);
 
 /* =====================================================
-   CORS (ALLOW VERCEL FRONTEND + COOKIES)
+   CORS
 ===================================================== */
 app.use(
   cors({
@@ -35,7 +38,7 @@ app.use(
 app.use(express.json());
 
 /* =====================================================
-   SESSION CONFIG
+   SESSION
 ===================================================== */
 app.use(
   session({
@@ -45,9 +48,9 @@ app.use(
     saveUninitialized: false,
     cookie: {
       httpOnly: true,
-      secure: true,     // HTTPS (Render)
-      sameSite: "none", // Required for cross-site cookies
-      maxAge: 1000 * 60 * 60 // 1 hour
+      secure: true,
+      sameSite: "none",
+      maxAge: 1000 * 60 * 60
     }
   })
 );
@@ -59,10 +62,7 @@ app.get("/", (req, res) => {
   res.send("Server alive");
 });
 
-/* Admin panel routes */
 app.use("/admin", adminRoutes);
-
-/* Telegram bot routes */
 app.use("/bot", botRoutes);
 
 /* =====================================================
@@ -76,7 +76,7 @@ mongoose
   );
 
 /* =====================================================
-   SERVER START
+   START SERVER
 ===================================================== */
 const PORT = process.env.PORT || 3000;
 
