@@ -1,45 +1,30 @@
-console.log("🚀 Server starting");
-
 import express from "express";
 import mongoose from "mongoose";
 import session from "express-session";
 import cors from "cors";
 
 import adminRoutes from "./routes/admin.js";
-import botRoutes from "./routes/bot.js";
-
-// 🔴 THIS LINE IS MANDATORY (starts polling)
-import "./bot/bot.js";
+import "./routes/bot.js"; // ✅ START TELEGRAM BOT (NO EXPORT)
 
 const app = express();
 
-/* =====================================================
-   REQUIRED FOR RENDER
-===================================================== */
+/* REQUIRED FOR RENDER */
 app.set("trust proxy", 1);
 
-/* =====================================================
-   CORS
-===================================================== */
+/* CORS */
 app.use(
   cors({
     origin: [
       "http://localhost:3000",
-      "http://localhost:5173",
       "https://otp-purchase-lcp2.vercel.app"
     ],
     credentials: true
   })
 );
 
-/* =====================================================
-   BODY PARSER
-===================================================== */
 app.use(express.json());
 
-/* =====================================================
-   SESSION
-===================================================== */
+/* SESSION */
 app.use(
   session({
     name: "admin-session",
@@ -47,39 +32,26 @@ app.use(
     resave: false,
     saveUninitialized: false,
     cookie: {
-      httpOnly: true,
       secure: true,
-      sameSite: "none",
-      maxAge: 1000 * 60 * 60
+      sameSite: "none"
     }
   })
 );
 
-/* =====================================================
-   ROUTES
-===================================================== */
+/* ADMIN ROUTES */
+app.use("/admin", adminRoutes);
+
+/* HEALTH CHECK */
 app.get("/", (req, res) => {
-  res.send("Server alive");
+  res.send("Server running");
 });
 
-app.use("/admin", adminRoutes);
-app.use("/bot", botRoutes);
-
-/* =====================================================
-   DATABASE
-===================================================== */
+/* DB */
 mongoose
   .connect(process.env.MONGO_URI)
   .then(() => console.log("✅ MongoDB connected"))
-  .catch((err) =>
-    console.error("❌ MongoDB connection error:", err.message)
-  );
+  .catch(console.error);
 
-/* =====================================================
-   START SERVER
-===================================================== */
+/* START */
 const PORT = process.env.PORT || 3000;
-
-app.listen(PORT, () => {
-  console.log(`✅ Server listening on port ${PORT}`);
-});
+app.listen(PORT, () => console.log(`🚀 Server running on ${PORT}`));
