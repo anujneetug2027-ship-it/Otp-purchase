@@ -1,17 +1,20 @@
+
 import mongoose from "mongoose";
 
 const couponSchema = new mongoose.Schema({
   code: {
     type: String,
     required: true,
-    unique: true
+    unique: true,
+    uppercase: true, // 🔥 AUTO FIX CASE ISSUE
+    trim: true
   },
   used: {
     type: Boolean,
     default: false
   },
   usedBy: {
-    type: String, // telegram chat id
+    type: String,
     default: null
   },
   usedAt: {
