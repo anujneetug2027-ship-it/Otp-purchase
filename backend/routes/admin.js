@@ -8,12 +8,15 @@ const router = express.Router();
 
 /* =====================================================
    TEMPORARY: CREATE ADMIN (REMOVE AFTER SUCCESS)
-   ===================================================== */
+===================================================== */
 router.post("/create-admin", async (req, res) => {
   try {
     const { name, email, password } = req.body;
 
-    // prevent duplicate admin
+    if (!name || !email || !password) {
+      return res.status(400).json({ error: "All fields required" });
+    }
+
     const exists = await Admin.findOne({ email });
     if (exists) {
       return res.status(400).json({ error: "Admin already exists" });
@@ -29,14 +32,14 @@ router.post("/create-admin", async (req, res) => {
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Create admin error:", err);
+    console.error("Create admin error:", err.message);
     res.status(500).json({ error: "Server error" });
   }
 });
 
 /* =====================================================
    ADMIN LOGIN
-   ===================================================== */
+===================================================== */
 router.post("/login", async (req, res) => {
   try {
     const { email, password } = req.body;
@@ -51,40 +54,38 @@ router.post("/login", async (req, res) => {
       return res.status(400).json({ error: "Invalid credentials" });
     }
 
-    // store admin id in session
     req.session.admin = admin._id;
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Login error:", err);
+    console.error("Login error:", err.message);
     res.status(500).json({ error: "Server error" });
   }
 });
 
 /* =====================================================
    CREATE COUPON (PROTECTED)
-   ===================================================== */
+===================================================== */
 router.post("/coupon", isAuth, async (req, res) => {
   try {
-    const { code } = req.body;
+    let { code } = req.body;
 
     if (!code) {
       return res.status(400).json({ error: "Coupon code required" });
     }
 
-    const exists = await Coupon.findOne({ couponCode: code });
+    code = code.trim().toUpperCase();
+
+    const exists = await Coupon.findOne({ code });
     if (exists) {
-      return res.status(400).json({ error: "Coupon already exists" });
+      return res.status(409).json({ error: "Coupon already exists" });
     }
 
-    await Coupon.create({
-      couponCode: code,
-      generatedBy: "Anuj"
-    });
+    await Coupon.create({ code });
 
     res.json({ success: true });
   } catch (err) {
-    console.error("Coupon error:", err);
+    console.error("Coupon create error:", err.message);
     res.status(500).json({ error: "Server error" });
   }
 });
